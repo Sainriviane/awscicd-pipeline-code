@@ -9,7 +9,7 @@ phases:
       # ✅ Add: Docker Hub login via Secrets Manager
       - echo Logging in to Docker Hub to avoid rate limits...
       - |
-        creds=$(aws secretsmanager get-secret-value --secret-id dockerhub/credentials --region $AWS_DEFAULT_REGION --query SecretString --output text)
+        creds=$(aws secretsmanager get-secret-value --secret-id dockerhub-secret --region $AWS_DEFAULT_REGION --query SecretString --output text)
         username=$(echo $creds | jq -r .username)
         token=$(echo $creds | jq -r .token)
         echo $token | docker login -u $username --password-stdin
