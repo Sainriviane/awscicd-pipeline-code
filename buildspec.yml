@@ -5,17 +5,28 @@ phases:
     commands:
       - echo Logging in to Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+
+      # ✅ Add: Docker Hub login via Secrets Manager
+      - echo Logging in to Docker Hub to avoid rate limits...
+      - |
+        creds=$(aws secretsmanager get-secret-value --secret-id dockerhub/credentials --region $AWS_DEFAULT_REGION --query SecretString --output text)
+        username=$(echo $creds | jq -r .username)
+        token=$(echo $creds | jq -r .token)
+        echo $token | docker login -u $username --password-stdin
+
   build:
     commands:
       - echo Build started on `date`
-      - echo Building the Docker image...          
-      - docker build --platform=linux/amd64  -t $IMAGE_REPO_NAME:$IMAGE_TAG -f DockerfileProd .
-      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG      
+      - echo Building the Docker image...
+      - docker build --platform=linux/amd64 -t $IMAGE_REPO_NAME:$IMAGE_TAG -f DockerfileProd .
+      - docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
+
   post_build:
     commands:
       - echo Build completed on `date`
       - echo Pushing the Docker image...
       - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG
       - printf '[{"name":"%s","imageUri":"%s"}]' "$CONTAINER_NAME" "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG" > imagedefinitions.json
+
 artifacts:
-    files: imagedefinitions.json
+  files: imagedefinitions.json
